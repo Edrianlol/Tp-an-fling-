@@ -1,0 +1,160 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+-- Create Screen GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "EdrianTestGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+-- Create main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.new(1, 1, 1) -- White background
+mainFrame.BorderColor3 = Color3.new(0, 0, 0) -- Black outline
+mainFrame.Parent = screenGui
+
+-- Make GUI movable
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- Title text
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 50)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "EdrianTestGui"
+titleLabel.TextColor3 = Color3.new(0, 1, 0) -- Green text
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 24
+titleLabel.Parent = mainFrame
+
+-- Dropdown menu for player selection
+local playerDropdown = Instance.new("TextButton")
+playerDropdown.Size = UDim2.new(1, -20, 0, 50)
+playerDropdown.Position = UDim2.new(0, 10, 0, 60)
+playerDropdown.BackgroundColor3 = Color3.new(1, 1, 1)
+playerDropdown.BorderColor3 = Color3.new(0, 0, 0)
+playerDropdown.Text = "Select Player"
+playerDropdown.Parent = mainFrame
+
+local playerList = Instance.new("Frame")
+playerList.Size = UDim2.new(1, -20, 0, 300)
+playerList.Position = UDim2.new(0, 10, 0, 120)
+playerList.BackgroundColor3 = Color3.new(1, 1, 1)
+playerList.BorderColor3 = Color3.new(0, 0, 0)
+playerList.Visible = false
+playerList.Parent = mainFrame
+
+local function refreshPlayerList()
+    playerList:ClearAllChildren()
+    for _, player in ipairs(Players:GetPlayers()) do
+        local playerButton = Instance.new("TextButton")
+        playerButton.Size = UDim2.new(1, 0, 0, 30)
+        playerButton.Text = player.Name
+        playerButton.Parent = playerList
+
+        playerButton.MouseButton1Click:Connect(function()
+            playerDropdown.Text = player.Name
+            playerList.Visible = false
+        end)
+    end
+end
+
+playerDropdown.MouseButton1Click:Connect(function()
+    playerList.Visible = not playerList.Visible
+    if playerList.Visible then
+        refreshPlayerList()
+    end
+end)
+
+Players.PlayerAdded:Connect(refreshPlayerList)
+Players.PlayerRemoving:Connect(refreshPlayerList)
+
+-- TP Button
+local tpButton = Instance.new("TextButton")
+tpButton.Size = UDim2.new(0.4, 0, 0, 50)
+tpButton.Position = UDim2.new(0.1, 0, 0, 430)
+tpButton.BackgroundColor3 = Color3.new(1, 1, 1)
+tpButton.BorderColor3 = Color3.new(0, 0, 0)
+tpButton.Text = "Tp"
+tpButton.Parent = mainFrame
+
+tpButton.MouseButton1Click:Connect(function()
+    local selectedPlayer = Players:FindFirstChild(playerDropdown.Text)
+    if selectedPlayer then
+        local localPlayer = game.Players.LocalPlayer
+        if localPlayer and localPlayer.Character and selectedPlayer.Character then
+            localPlayer.Character:MoveTo(selectedPlayer.Character.HumanoidRootPart.Position)
+        end
+    end
+end)
+
+-- Fling Button
+local flingButton = Instance.new("TextButton")
+flingButton.Size = UDim2.new(0.4, 0, 0, 50)
+flingButton.Position = UDim2.new(0.55, 0, 0, 430)
+flingButton.BackgroundColor3 = Color3.new(1, 1, 1)
+flingButton.BorderColor3 = Color3.new(0, 0, 0)
+flingButton.Text = "Fling"
+flingButton.Parent = mainFrame
+
+flingButton.MouseButton1Click:Connect(function()
+    local selectedPlayer = Players:FindFirstChild(playerDropdown.Text)
+    if selectedPlayer then
+        local localPlayer = game.Players.LocalPlayer
+        if localPlayer and localPlayer.Character and selectedPlayer.Character then
+            localPlayer.Character:MoveTo(selectedPlayer.Character.HumanoidRootPart.Position)
+            
+            -- Fling logic (server-sided)
+            game:GetService("ReplicatedStorage"):WaitForChild("FlingEvent"):FireServer(selectedPlayer)
+        end
+    end
+end)
+
+-- Server-side script for fling functionality
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local flingEvent = Instance.new("RemoteEvent")
+flingEvent.Name = "FlingEvent"
+flingEvent.Parent = replicatedStorage
+
+flingEvent.OnServerEvent:Connect(function(player, targetPlayer)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = targetPlayer.Character.HumanoidRootPart
+        hrp.Velocity = Vector3.new(0, 100, 0)
+        hrp.RotVelocity = Vector3.new(100, 100, 100)
+    end
+end)
