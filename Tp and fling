@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Create Screen GUI
 local screenGui = Instance.new("ScreenGui")
@@ -71,13 +72,18 @@ playerDropdown.BorderColor3 = Color3.new(0, 0, 0)
 playerDropdown.Text = "Select Player"
 playerDropdown.Parent = mainFrame
 
-local playerList = Instance.new("Frame")
+local playerList = Instance.new("ScrollingFrame")
 playerList.Size = UDim2.new(1, -20, 0, 300)
 playerList.Position = UDim2.new(0, 10, 0, 120)
 playerList.BackgroundColor3 = Color3.new(1, 1, 1)
 playerList.BorderColor3 = Color3.new(0, 0, 0)
+playerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+playerList.ScrollBarThickness = 10
 playerList.Visible = false
 playerList.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Parent = playerList
 
 local function refreshPlayerList()
     playerList:ClearAllChildren()
@@ -92,7 +98,12 @@ local function refreshPlayerList()
             playerList.Visible = false
         end)
     end
+    playerList.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
 end
+
+listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    playerList.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+end)
 
 playerDropdown.MouseButton1Click:Connect(function()
     playerList.Visible = not playerList.Visible
@@ -140,16 +151,15 @@ flingButton.MouseButton1Click:Connect(function()
             localPlayer.Character:MoveTo(selectedPlayer.Character.HumanoidRootPart.Position)
             
             -- Fling logic (server-sided)
-            game:GetService("ReplicatedStorage"):WaitForChild("FlingEvent"):FireServer(selectedPlayer)
+            ReplicatedStorage:WaitForChild("FlingEvent"):FireServer(selectedPlayer)
         end
     end
 end)
 
 -- Server-side script for fling functionality
-local replicatedStorage = game:GetService("ReplicatedStorage")
 local flingEvent = Instance.new("RemoteEvent")
 flingEvent.Name = "FlingEvent"
-flingEvent.Parent = replicatedStorage
+flingEvent.Parent = ReplicatedStorage
 
 flingEvent.OnServerEvent:Connect(function(player, targetPlayer)
     if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
